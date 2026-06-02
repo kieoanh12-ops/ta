@@ -1,1 +1,449 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Luyện Nói & Chấm Điểm Phát Âm HSK</title>
+    <style>
+        :root {
+            --primary: #d63031;
+            --secondary: #0984e3;
+            --success: #2ed573;
+            --danger: #ff4757;
+            --warning: #ffa502;
+            --dark: #2f3542;
+            --light: #f1f2f6;
+        }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--dark);
+            margin-top: 0;
+            font-size: 24px;
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 15px;
+        }
+
+        /* Bộ lọc HSK */
+        .hsk-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--light);
+            background: white;
+            border-radius: 25px;
+            font-weight: bold;
+            color: #747d8c;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 10px rgba(214, 48, 49, 0.3);
+        }
+
+        /* Thẻ hiển thị từ/câu */
+        .display-card {
+            background: var(--light);
+            border-radius: 15px;
+            padding: 30px 20px;
+            text-align: center;
+            position: relative;
+            margin-bottom: 25px;
+        }
+
+        .level-badge {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: var(--dark);
+            color: white;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .chinese-text {
+            font-size: 48px;
+            font-weight: bold;
+            color: var(--dark);
+            margin: 0 0 10px 0;
+            letter-spacing: 2px;
+        }
+
+        .pinyin-text {
+            font-size: 20px;
+            color: var(--primary);
+            font-weight: 500;
+            margin: 0 0 10px 0;
+        }
+
+        .meaning-text {
+            font-size: 16px;
+            color: #57606f;
+            font-style: italic;
+            margin: 0;
+        }
+
+        /* Bảng điều khiển nút bấm */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { background: #ced6e0 !important; color: #a4b0be !important; cursor: not-allowed; transform: none; }
+
+        .btn-listen { background: var(--warning); color: white; }
+        .btn-start { background: var(--success); color: white; }
+        .btn-stop { background: var(--danger); color: white; }
+        .btn-next { background: var(--secondary); color: white; }
+
+        /* Bảng kết quả nâng cao */
+        .result-panel {
+            background: #f8f9fa;
+            border: 2px dashed #ced6e0;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+
+        .score-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #ced6e0;
+        }
+
+        .score-box {
+            text-align: center;
+        }
+
+        .score-num {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .score-label {
+            font-size: 12px;
+            color: #747d8c;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .analysis-box p {
+            margin: 8px 0;
+            font-size: 15px;
+        }
+
+        /* Highlight từ đúng sai */
+        .diff-text {
+            font-size: 18px;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .match { color: var(--success); }
+        .miss { color: var(--danger); border-bottom: 2px dotted var(--danger); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>Hệ Thống Luyện Nói Tiếng Trung HSK</h1>
+
+    <div class="hsk-tabs">
+        <button class="tab-btn active" onclick="filterLevel('ALL')">Tất cả</button>
+        <button class="tab-btn" onclick="filterLevel(1)">HSK 1</button>
+        <button class="tab-btn" onclick="filterLevel(2)">HSK 2</button>
+        <button class="tab-btn" onclick="filterLevel(3)">HSK 3</button>
+    </div>
+
+    <div class="display-card">
+        <span class="level-badge" id="lbl-level">HSK 1</span>
+        <div class="chinese-text" id="lbl-chinese">你好</div>
+        <div class="pinyin-text" id="lbl-pinyin">nǐ hǎo</div>
+        <div class="meaning-text" id="lbl-meaning">Xin chào</div>
+    </div>
+
+    <div class="control-grid">
+        <button class="btn btn-listen" id="btn-listen" onclick="playSampleAudio()">🔊 Nghe mẫu</button>
+        <button class="btn btn-start" id="btn-start" onclick="startSpeaking()">🎙️ Bắt đầu nói</button>
+        <button class="btn btn-stop" id="btn-stop" onclick="stopSpeaking()" disabled>🛑 Kết thúc nói</button>
+        <button class="btn btn-next" id="btn-next" onclick="loadNextSentence()">⏭️ Đổi câu khác</button>
+    </div>
+
+    <div class="result-panel" id="result-panel">
+        <div class="score-container">
+            <div class="score-box">
+                <div class="score-num" id="val-score" style="color: var(--success);">0</div>
+                <div class="score-label">Điểm Phát Âm</div>
+            </div>
+            <div class="score-box">
+                <div class="score-num" id="val-speed" style="color: var(--secondary);">0</div>
+                <div class="score-label">Tốc độ (chữ/phút)</div>
+            </div>
+        </div>
+        
+        <div class="analysis-box">
+            <p><strong>Bạn đã nói:</strong> <span id="val-user-speech" style="color: var(--secondary); font-weight: bold;"></span></p>
+            <p><strong>Phân tích chi tiết:</strong> <span id="val-detailed-analysis" class="diff-text"></span></p>
+            <p><strong>Đánh giá phản xạ:</strong> <span id="val-speed-feedback" style="font-weight: 500;"></span></p>
+            <p><strong>Nhận xét:</strong> <span id="val-general-feedback" style="font-weight: 500; color: #57606f;"></span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Thư viện câu hỏi phân loại HSK 1 - 3 đa dạng cấu trúc câu luyện nói
+    const hskDatabase = [
+        // HSK 1
+        { zh: "你好", py: "nǐ hǎo", vi: "Xin chào", lv: 1 },
+        { zh: "谢谢你", py: "xièxie nǐ", vi: "Cảm ơn bạn", lv: 1 },
+        { zh: "你会做饭吗", py: "nǐ huì zuò fàn ma", vi: "Bạn biết nấu cơm không?", lv: 1 },
+        { zh: "我喜欢学汉语", py: "wǒ xǐhuan xué hànyǔ", vi: "Tôi thích học tiếng Trung", lv: 1 },
+        // HSK 2
+        { zh: "今天天气很好", py: "jīntiān tiānqì hěn hǎo", vi: "Hôm nay thời tiết rất đẹp", lv: 2 },
+        { zh: "我想去中国旅游", py: "wǒ xiǎng qù zhōngguó lǚyóu", vi: "Tôi muốn đi du lịch Trung Quốc", lv: 2 },
+        { zh: "跑步对身体很好", py: "pǎobù duì shēntǐ hěn hǎo", vi: "Chạy bộ rất tốt cho sức khỏe", lv: 2 },
+        // HSK 3
+        { zh: "虽然很难，但是我不会放弃", py: "suīrán hěn nán, dànshì wǒ búhuì fàngqì", vi: "Tuy rằng rất khó, nhưng tôi sẽ không từ bỏ", lv: 3 },
+        { zh: "你对这个问题有什么看法", py: "nǐ duì zhège wèntí yǒu shénme kànfǎ", vi: "Bạn có ý kiến gì về vấn đề này?", lv: 3 },
+        { zh: "我们需要常常复习", py: "wǒmen xūyào chángcháng fùxí", vi: "Chúng ta cần phải thường xuyên ôn tập", lv: 3 }
+    ];
+
+    let currentList = [...hskDatabase];
+    let currentIndex = 0;
+    let recognition;
+    let startTime; // Đo thời gian bắt đầu nói để tính tốc độ phản xạ
+
+    // Cấu hình Speech Recognition API của Google
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'zh-CN';
+        recognition.continuous = true; 
+        recognition.interimResults = false;
+
+        recognition.onresult = function(event) {
+            const endTime = new Date();
+            const lastIndex = event.results.length - 1;
+            const userSpeech = event.results[lastIndex][0].transcript;
+            const googleConfidence = event.results[lastIndex][0].confidence;
+            
+            // Tính thời gian nói (giây)
+            const durationInSeconds = (endTime - startTime) / 1000;
+            
+            processAndScoreSpeech(userSpeech, googleConfidence, durationInSeconds);
+        };
+
+        recognition.onend = function() {
+            resetButtonsState();
+        };
+
+        recognition.onerror = function(event) {
+            if(event.error !== 'no-speech') {
+                alert("Không nhận diện được âm thanh, hãy thử lại.");
+                stopSpeaking();
+            }
+        };
+    } else {
+        alert("Trình duyệt không hỗ trợ Nhận diện giọng nói của Google. Hãy thử Google Chrome!");
+    }
+
+    // 1. Chức năng Nghe đọc thử (Google Text-To-Speech)
+    function playSampleAudio() {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const sampleText = currentList[currentIndex].zh;
+            const utterance = new SpeechSynthesisUtterance(sampleText);
+            utterance.lang = 'zh-CN';
+            
+            // Đồng bộ tìm giọng đọc Google Chinese chính xác
+            const voices = window.speechSynthesis.getVoices();
+            const googleVoice = voices.find(v => v.lang.includes('zh') && v.name.includes('Google'));
+            if (googleVoice) utterance.voice = googleVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+    }
+
+    // 2. Nút Bắt đầu nói
+    function startSpeaking() {
+        if (!recognition) return;
+        
+        document.getElementById("btn-start").disabled = true;
+        document.getElementById("btn-stop").disabled = false;
+        document.getElementById("btn-next").disabled = true;
+        document.getElementById("btn-listen").disabled = true;
+        document.getElementById("result-panel").style.display = "none";
+
+        startTime = new Date(); // Ghi nhận thời điểm bắt đầu
+        recognition.start();
+    }
+
+    // 3. Nút Kết thúc nói
+    function stopSpeaking() {
+        if (!recognition) return;
+        recognition.stop();
+    }
+
+    // 4. Hệ thống phân tích kỹ năng nói & chấm điểm chuyên sâu
+    function processAndScoreSpeech(userSpeech, confidence, duration) {
+        const target = currentList[currentIndex].zh;
+        
+        // Làm sạch chuỗi (loại bỏ khoảng trắng, dấu câu)
+        const cleanTarget = target.replace(/[，。？！、\s]/g, "");
+        const cleanUser = userSpeech.replace(/[，。？！、\s]/g, "");
+
+        document.getElementById("val-user-speech").innerText = userSpeech;
+        document.getElementById("result-panel").style.display = "block";
+
+        // A. Tính điểm dựa trên độ trùng khớp từ và độ chuẩn âm của Google
+        let score = 0;
+        let detailedHTML = "";
+
+        // So sánh chi tiết từng từ để hiển thị từ đúng/sai
+        for (let i = 0; i < cleanTarget.length; i++) {
+            let char = cleanTarget[i];
+            if (cleanUser.includes(char)) {
+                detailedHTML += `<span class="match">${char}</span>`;
+            } else {
+                detailedHTML += `<span class="miss">${char}</span>`;
+            }
+        }
+        document.getElementById("val-detailed-analysis").innerHTML = detailedHTML;
+
+        // Báo điểm số
+        if (cleanUser === cleanTarget) {
+            score = Math.round(90 + (confidence * 10));
+            document.getElementById("val-general-feedback").innerText = "🔥 Phát âm hoàn hảo! Giọng đọc rất tự nhiên.";
+        } else {
+            let correctCount = 0;
+            for(let char of cleanTarget) {
+                if(cleanUser.includes(char)) correctCount++;
+            }
+            let ratio = correctCount / cleanTarget.length;
+            score = Math.round(ratio * 85);
+            
+            if(score >= 60) {
+                document.getElementById("val-general-feedback").innerText = "👍 Người bản xứ có thể hiểu được, hãy tập trung thêm vào các từ bị đỏ.";
+            } else {
+                document.getElementById("val-general-feedback").innerText = "❌ Phát âm sai khá nhiều, hãy nhấn 'Nghe mẫu' để điều chỉnh cơ miệng.";
+            }
+        }
+        document.getElementById("val-score").innerText = score;
+
+        // B. Tính toán Tốc độ nói (Speaking Speed) -> Đo mức độ lưu loát
+        const charCount = cleanUser.length;
+        // Tính số từ nói được trong 1 phút (Characters Per Minute)
+        const cpm = Math.round(charCount / (duration / 60));
+        document.getElementById("val-speed").innerText = isNaN(cpm) || cpm === Infinity ? 0 : cpm;
+
+        let speedFeedback = "";
+        if (cpm >= 100 && cpm <= 200) {
+            speedFeedback = "⚡ Tốc độ nói lý tưởng, rất lưu loát và tự nhiên.";
+        } else if (cpm < 100) {
+            speedFeedback = "🐢 Bạn nói hơi chậm hoặc ngập ngừng, hãy luyện tập phản xạ nhanh hơn.";
+        } else {
+            speedFeedback = "🚀 Bạn nói quá nhanh, cần nói chậm lại một chút để rõ chữ hơn.";
+        }
+        document.getElementById("val-speed-feedback").innerText = speedFeedback;
+    }
+
+    function resetButtonsState() {
+        document.getElementById("btn-start").disabled = false;
+        document.getElementById("btn-stop").disabled = true;
+        document.getElementById("btn-next").disabled = false;
+        document.getElementById("btn-listen").disabled = false;
+    }
+
+    // 5. Chức năng Lọc theo cấp độ HSK 1 2 3
+    function filterLevel(level) {
+        const tabs = document.querySelectorAll('.tab-btn');
+        tabs.forEach(tab => tab.classList.remove('active'));
+        event.target.classList.add('active');
+
+        if (level === 'ALL') {
+            currentList = [...hskDatabase];
+        } else {
+            currentList = hskDatabase.filter(item => item.lv === level);
+        }
+        currentIndex = 0;
+        updateUI();
+    }
+
+    // 6. Đổi câu khác
+    function loadNextSentence() {
+        if (currentList.length === 0) return;
+        currentIndex = (currentIndex + 1) % currentList.length;
+        updateUI();
+    }
+
+    function updateUI() {
+        if (currentList.length === 0) {
+            document.getElementById("lbl-chinese").innerText = "Hết dữ liệu";
+            document.getElementById("lbl-pinyin").innerText = "";
+            document.getElementById("lbl-meaning").innerText = "";
+            return;
+        }
+        const currentData = currentList[currentIndex];
+        document.getElementById("lbl-chinese").innerText = currentData.zh;
+        document.getElementById("lbl-pinyin").innerText = currentData.py;
+        document.getElementById("lbl-meaning").innerText = currentData.vi;
+        document.getElementById("lbl-level").innerText = `HSK ${currentData.lv}`;
+        document.getElementById("result-panel").style.display = "none";
+    }
+
+    // Khởi động giao diện lúc tải trang
+    if ('speechSynthesis' in window) { window.speechSynthesis.getVoices(); }
+    updateUI();
+</script>
+</body>
+</html>
